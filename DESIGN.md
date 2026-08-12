@@ -40,8 +40,7 @@ GAP-05 (Lambda into the starter's VPC) and GAP-08 (API Gateway access logging/th
 ## Repo structure (planned)
 
 acme-health-grc-capstone/
-  terraform/            # starter's original resources, unmodified where possible
-  terraform/grc/         # new: KMS, evidence vault, CloudTrail, gap-closing overrides
+  terraform/              # starter's original files plus new: kms.tf, evidence-vault.tf, cloudtrail.tf, gap-overrides.tf (all one state — overrides reference starter resources directly)
   policies/              # new: 5+ Rego policies with tests, HIPAA-cited
   .github/workflows/     # new: grc-gate.yml (plan/policy-check/apply/sign/upload)
   oscal/                 # new: component-definition.json + profile
