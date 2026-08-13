@@ -21,7 +21,7 @@ deny contains msg if {
 	resource.type == "aws_s3_bucket"
 	contains(resource.address, "uploads")
 
-	not has_tls_only_policy(resource.address)
+	not has_tls_only_policy
 
 	msg := sprintf(
 		"HIPAA 164.312(e)(1): S3 bucket '%s' must have a bucket policy denying non-TLS (aws:SecureTransport=false) requests.",
@@ -29,10 +29,12 @@ deny contains msg if {
 	)
 }
 
-has_tls_only_policy(bucket_address) if {
+# Matched by resource address (static, known at plan time) rather than
+# the parent bucket's computed id.
+has_tls_only_policy if {
 	some pol in input.resource_changes
 	pol.type == "aws_s3_bucket_policy"
-	pol.change.after.bucket == input_bucket_id(bucket_address)
+	contains(pol.address, "uploads")
 	policy_doc := json.unmarshal(pol.change.after.policy)
 	some statement in policy_doc.Statement
 	statement.Effect == "Deny"
@@ -41,10 +43,4 @@ has_tls_only_policy(bucket_address) if {
 
 condition_denies_insecure_transport(statement) if {
 	statement.Condition.Bool["aws:SecureTransport"] == "false"
-}
-
-input_bucket_id(bucket_address) := id if {
-	some resource in input.resource_changes
-	resource.address == bucket_address
-	id := resource.change.after.id
 }

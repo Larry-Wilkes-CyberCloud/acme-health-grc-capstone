@@ -21,7 +21,7 @@ deny contains msg if {
 	resource.type == "aws_s3_bucket"
 	contains(resource.address, "uploads")
 
-	not has_versioning_enabled(resource.address)
+	not has_versioning_enabled
 
 	msg := sprintf(
 		"HIPAA 164.308(a)(7): S3 bucket '%s' must have versioning enabled to protect PHI from accidental overwrite or tampering.",
@@ -29,15 +29,11 @@ deny contains msg if {
 	)
 }
 
-has_versioning_enabled(bucket_address) if {
+# Matched by resource address (static, known at plan time) rather than
+# the parent bucket's computed id.
+has_versioning_enabled if {
 	some ver in input.resource_changes
 	ver.type == "aws_s3_bucket_versioning"
-	ver.change.after.bucket == input_bucket_id(bucket_address)
+	contains(ver.address, "uploads")
 	ver.change.after.versioning_configuration[0].status == "Enabled"
-}
-
-input_bucket_id(bucket_address) := id if {
-	some resource in input.resource_changes
-	resource.address == bucket_address
-	id := resource.change.after.id
 }

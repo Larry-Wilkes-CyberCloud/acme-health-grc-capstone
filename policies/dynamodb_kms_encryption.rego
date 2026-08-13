@@ -21,8 +21,7 @@ deny contains msg if {
 	some resource in input.resource_changes
 	resource.type == "aws_dynamodb_table"
 
-	sse := object.get(resource.change.after, "server_side_encryption", [])
-	not sse_uses_cmk(sse)
+	not has_cmk_sse(resource.change)
 
 	msg := sprintf(
 		"HIPAA 164.312(a)(2)(iv): DynamoDB table '%s' must have server_side_encryption enabled with a customer-managed KMS key.",
@@ -30,9 +29,26 @@ deny contains msg if {
 	)
 }
 
-sse_uses_cmk(sse) if {
+has_cmk_sse(change) if {
+	sse := object.get(change.after, "server_side_encryption", [])
 	count(sse) > 0
 	sse[0].enabled == true
-	sse[0].kms_key_arn != ""
-	sse[0].kms_key_arn != null
+	kms_key_wired(change)
+}
+
+# The key's ARN may be a known literal (key already exists) or marked
+# after_unknown (key is being created in this same plan, so its ARN
+# isn't resolved yet but is genuinely wired to a real resource
+# reference) — both count as "closed."
+kms_key_wired(change) if {
+	sse := object.get(change.after, "server_side_encryption", [])
+	val := sse[0].kms_key_arn
+	val != null
+	val != ""
+}
+
+kms_key_wired(change) if {
+	unk := object.get(change, "after_unknown", {})
+	sse_unk := object.get(unk, "server_side_encryption", [])
+	sse_unk[0].kms_key_arn == true
 }
