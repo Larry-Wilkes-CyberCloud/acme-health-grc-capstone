@@ -63,6 +63,15 @@ data "aws_iam_policy_document" "github_actions_vault_write" {
       "${aws_s3_bucket.evidence_vault.arn}/*",
     ]
   }
+
+  statement {
+    effect = "Allow"
+    actions = [
+      "kms:GenerateDataKey",
+      "kms:Decrypt",
+    ]
+    resources = [aws_kms_key.phi.arn]
+  }
 }
 
 resource "aws_iam_role_policy" "github_actions_vault_write" {
