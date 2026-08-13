@@ -1,0 +1,103 @@
+name: grc-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_ROLE_ARN: arn:aws:iam::845958214688:role/acme-health-intake-grc-gate
+  AWS_REGION: us-east-1
+  TF_WORKING_DIR: terraform
+  EVIDENCE_VAULT: acme-health-intake-evidence-af4ca5c0
+
+jobs:
+  grc-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Install Conftest
+        run: |
+          curl -sSL -o conftest.tar.gz https://github.com/open-policy-agent/conftest/releases/download/v0.56.0/conftest_0.56.0_Linux_x86_64.tar.gz
+          tar xzf conftest.tar.gz conftest
+          sudo mv conftest /usr/local/bin
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Terraform init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init -input=false
+
+      - name: Terraform plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          terraform plan -input=false -out=tfplan
+          terraform show -json tfplan > plan.json
+          terraform show -no-color tfplan > plan.txt
+
+      - name: Conftest policy gate
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          conftest test plan.json --all-namespaces -p ../policies --output json > conftest-results.json || true
+          cat conftest-results.json
+
+      - name: tfsec scan
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: ${{ env.TF_WORKING_DIR }}
+          soft_fail: true
+          format: json
+          additional_args: --out ${{ env.TF_WORKING_DIR }}/tfsec.json
+
+      - name: Terraform apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Copy plan into evidence
+        if: always()
+        run: |
+          mkdir -p evidence
+          cp ${{ env.TF_WORKING_DIR }}/plan.json evidence/plan.json
+          cp ${{ env.TF_WORKING_DIR }}/plan.txt evidence/plan.txt
+          cp ${{ env.TF_WORKING_DIR }}/conftest-results.json evidence/conftest-results.json
+
+      - name: Bundle + sign + upload to vault
+        if: always()
+        env:
+          VAULT: ${{ env.EVIDENCE_VAULT }}
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: bash scripts/bundle-sign-upload.sh
+
+      - name: Upload evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: grc-evidence-${{ github.run_id }}
+          path: evidence/
+          retention-days: 90
+
+      - name: Evaluate gate results
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: |
+          FAILURES=$(python3 -c "import json; d=json.load(open('conftest-results.json')); print(sum(len(r.get('failures', [])) for r in d))")
+          echo "Policy failures: $FAILURES"
+          if [ "$FAILURES" -gt 0 ]; then
+            echo "::error::Conftest policy gate found $FAILURES failure(s)."
+            exit 1
+          fi
