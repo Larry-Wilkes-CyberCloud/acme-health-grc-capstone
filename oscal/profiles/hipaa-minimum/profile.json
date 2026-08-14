@@ -1,0 +1,18 @@
+{
+  "profile": {
+    "uuid": "3b85c83b-6777-433a-908f-f50855998600",
+    "metadata": {
+      "title": "Acme Health minimum HIPAA Security Rule selection",
+      "last-modified": "2026-08-13T00:00:00.000000+00:00",
+      "version": "1.0.0",
+      "oscal-version": "1.2.1"
+    },
+    "imports": [
+      {
+        "href": "https://www.nist.gov/privacy-framework/nist-sp-800-66",
+        "include-all": {}
+      }
+    ],
+    "merge": { "as-is": true }
+  }
+}
