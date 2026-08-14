@@ -63,10 +63,13 @@ jobs:
           format: json
           additional_args: --out ${{ env.TF_WORKING_DIR }}/tfsec.json
 
-      - name: Terraform apply
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        working-directory: ${{ env.TF_WORKING_DIR }}
-        run: terraform apply -input=false -auto-approve tfplan
+      # Apply is deliberately NOT automated here. The GitHub Actions OIDC
+      # role is scoped to ReadOnlyAccess plus a narrow evidence-vault-write
+      # policy only -- it has no create/modify permissions on workload
+      # infrastructure by design. Granting a CI role broad infra-admin
+      # power on every merge to main is a real risk surface for a
+      # HIPAA-scoped system; apply is a deliberate, manual, human-run step
+      # from an operator's own credentials. See WRITEUP.md.
 
       - name: Copy plan into evidence
         if: always()
