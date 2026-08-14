@@ -1,0 +1,10 @@
+$ trestle validate -f component-definitions/acme-health-intake-v1/component-definition.json
+VALID: Model component-definition.json passed the Validator to confirm the model passes all registered validation tests.
+
+$ trestle validate -f profiles/hipaa-minimum/profile.json
+VALID: Model profile.json passed the Validator to confirm the model passes all registered validation tests.
+
+$ trestle author profile-resolve -n hipaa-minimum -o hipaa-minimum-resolved
+ERROR: Generation of the resolved profile catalog failed: Cache update failure for
+https://www.nist.gov/privacy-framework/nist-sp-800-66. GET returned code 404.
+
