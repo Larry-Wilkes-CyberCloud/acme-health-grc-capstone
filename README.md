@@ -1,5 +1,7 @@
 # Acme Health GRC Capstone
 
+[![CI](https://github.com/Larry-Wilkes-CyberCloud/acme-health-grc-capstone/actions/workflows/grc-gate.yml/badge.svg)](https://github.com/Larry-Wilkes-CyberCloud/acme-health-grc-capstone/actions/workflows/grc-gate.yml) ![OPA tests](https://img.shields.io/badge/OPA_tests-14%2F14_passing-brightgreen)
+
 Fork of [cgep-app-starter](https://github.com/GRCEngClub/cgep-app-starter), wrapped with the four CGE-P GRC layers to make a deliberately non-compliant patient intake API defensible against the **HIPAA Security Rule**. Full reasoning in [WRITEUP.md](WRITEUP.md); design decisions in [DESIGN.md](DESIGN.md).
 
 ## What was built
